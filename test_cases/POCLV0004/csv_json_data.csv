@@ -1,0 +1,4 @@
+name,parents
+alice,"{""mother"":""maria"",""father"":""joseph""}"
+bob,"{""mother"":""anna""}"
+tobias,"{}"

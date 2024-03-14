@@ -1,0 +1,105 @@
+@prefix : <http://example.org/> .
+@prefix ql: <http://semweb.mmlab.be/ns/ql#> .
+@prefix rml: <http://w3id.org/rml/> .
+@prefix rml1: <http://semweb.mmlab.be/ns/rml#> .
+@prefix rr: <http://www.w3.org/ns/r2rml#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+:jsonSource a rml:LogicalSource ;
+  rml:source "./RMLLVTC0004/people.json" ;
+  rml:referenceFormulation rml:JSONPath ;
+  rml:iterator "$.people[*]" .
+
+:jsonView a rml:LogicalView ;
+  rml:onLogicalSource :jsonSource ;
+  rml:field [
+    rml:fieldName "name" ;
+    rml:reference "$.name" ;
+  ] ;
+  rml:field [
+    rml:fieldName "item" ;
+    rml:reference "$.items[*]" ;
+    rml:field [
+      rml:fieldName "type" ;
+      rml:reference "$.type" ;
+    ] ;
+    rml:field [
+      rml:fieldName "weight" ;
+      rml:reference "$.weight" ;
+    ] ;
+  ] .
+
+:csvSource a rml:LogicalSource ;
+  rml:source "./RMLLVTC0004/people.csv" ;
+  rml:referenceFormulation rml:CSV .
+
+:csvView a rml:LogicalView ;
+  rml:onLogicalSource :csvSource ;
+  rml:field [
+    rml:fieldName "name" ;
+    rml:reference "name" ;
+  ] ;
+  rml:field [
+    rml:fieldName "birthyear" ;
+    rml:reference "birthyear" ;
+  ] ;
+  rml:innerJoin [
+    rml:parentLogicalView :jsonView ;
+    rml:joinCondition [
+      rml:parent "name" ;
+      rml:child "name" ;
+    ] ;
+    rml:field [
+      rml:fieldName "item_type" ;
+      rml:reference "item.type" ;
+    ] ;
+    rml:field [
+      rml:fieldName "item_weight" ;
+      rml:reference "item.weight" ;
+    ] ;
+  ] .
+
+
+:triplesMapPerson a rml:TriplesMap ;
+  rml1:logicalSource :csvView ;
+  rr:subjectMap [
+    rr:template "http://example.org/person/{name}" ;
+  ] ;
+  rr:predicateObjectMap [
+    rr:predicate :hasName ;
+    rr:objectMap [
+      rml1:reference "name" ;
+    ] ;
+  ] ;
+  rr:predicateObjectMap [
+    rr:predicate :hasBirthyear ;
+    rr:objectMap [
+      rml1:reference "birthyear" ;
+      rr:datatype xsd:gYear ;
+    ] ;
+  ] ;
+  rr:predicateObjectMap [
+    rr:predicate :hasItem ;
+    rr:objectMap [
+      rr:parentTriplesMap :triplesMapItem ;
+    ] ;
+  ] .
+
+:triplesMapItem a rml:TriplesMap ;
+  rml1:logicalSource :csvView ;
+  rr:subjectMap [
+    rr:template "http://example.org/person/{name}/item/{item_type}" ;
+  ] ;
+  rr:predicateObjectMap [
+    rr:predicate :hasType ;
+    rr:objectMap [
+      rml1:reference "item_type" ;
+    ] ;
+  ] ;
+  rr:predicateObjectMap [
+    rr:predicate :hasWeight ;
+    rr:objectMap [
+      rml1:reference "item_weight" ;
+      rr:datatype xsd:integer ;
+    ] ;
+  ] .

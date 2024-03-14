@@ -1,0 +1,12 @@
+{
+  "entries": [
+    {
+      "cn": ["developer"],
+      "memberUid": ["dummydeveloper", "bgates"]
+    },
+    {
+      "cn": ["admin"],
+      "memberUid": ["dummyadmin", "bgates"]
+    }
+  ]
+}

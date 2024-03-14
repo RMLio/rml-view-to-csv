@@ -1,0 +1,26 @@
+@prefix rml: <http://w3id.org/rml/> .
+@prefix : <http://example.org/> .
+
+:csvSource a rml:LogicalSource ;
+  rml:source "./test_cases/POCLV0004/csv_json_data.csv";
+  rml:referenceFormulation rml:CSV .
+
+:csvView a rml:LogicalView ;
+  rml:onLogicalSource :csvSource ;
+  rml:field [
+    rml:fieldName "name" ;
+    rml:reference "name" ;
+  ] ;
+  rml:field [
+    rml:fieldName "parents" ;
+    rml:reference "parents" ;
+    rml:referenceFormulation rml:JSONPath ;
+    rml:field [
+      rml:fieldName "mother" ;
+      rml:reference "$.mother" ;
+    ] ;
+    rml:field [
+      rml:fieldName "father" ;
+      rml:reference "$.father" ;
+    ] ;
+  ] .

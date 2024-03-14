@@ -1,0 +1,35 @@
+@prefix rml: <http://w3id.org/rml/> .
+@prefix : <http://example.org/> .
+
+:jsonSource a rml:LogicalSource ;
+  rml:source "./test_cases/POCLV0006/json_data2.json" ;
+  rml:referenceFormulation rml:JSONPath ;
+  rml:iterator "$.people[*]" .
+
+:jsonView a rml:LogicalView ;
+  rml:onLogicalSource :jsonSource ;
+  rml:field [
+    rml:fieldName "name" ;
+    rml:reference "$.name" ;
+  ] ;
+  rml:field [
+    rml:fieldName "item" ;
+    rml:reference "$.items[*]" ;
+    rml:field [
+      rml:fieldName "type" ;
+      rml:reference "$.type" ;
+    ] ;
+    rml:field [
+      rml:fieldName "measures";
+      rml:reference "$.measures";
+      rml:field [
+        rml:fieldName "weight" ;
+        rml:reference "$.weight" ;
+        ];
+      rml:field [
+        rml:fieldName "length" ;
+        rml:reference "$.length" ;
+      ]
+    ] ;
+  ] .
+

@@ -1,0 +1,52 @@
+@prefix rml: <http://w3id.org/rml/> .
+@prefix : <http://example.org/> .
+
+:csvSource a rml:LogicalSource ;
+  rml:source "./test_cases/POCLV0002/csv_data.csv"; #old RML formulation
+  rml:referenceFormulation rml:CSV .
+
+:jsonSource a rml:LogicalSource ;
+  rml:source "./test_cases/POCLV0002/json_data.json" ;
+  rml:referenceFormulation rml:JSONPath ;
+  rml:iterator "$.people[*]" .
+
+:jsonView a rml:LogicalView ;
+  rml:onLogicalSource :jsonSource ;
+  rml:field [
+    rml:fieldName "name" ;
+    rml:reference "$.name" ;
+  ] ;
+  rml:field [
+    rml:fieldName "item" ;
+    rml:reference "$.items[*]" ;
+    rml:field [
+      rml:fieldName "type" ;
+      rml:reference "$.type" ;
+    ] ;
+    rml:field [
+      rml:fieldName "weight" ;
+      rml:reference "$.weight" ;
+    ] ;
+  ] ;
+  rml:leftJoin [
+    rml:parentLogicalView :csvView ;
+    rml:joinCondition [
+      rml:parent "name" ;
+      rml:child "name" ;
+    ] ;
+    rml:field [
+      rml:fieldName "parent_birthyear" ;
+      rml:reference "birthyear" ;
+    ] ;
+  ] .
+
+:csvView a rml:LogicalView ;
+  rml:onLogicalSource :csvSource ;
+  rml:field [
+    rml:fieldName "name" ;
+    rml:reference "name" ;
+  ] ;
+  rml:field [
+    rml:fieldName "birthyear" ;
+    rml:reference "birthyear" ;
+  ] .

@@ -1,0 +1,18 @@
+@prefix rml: <http://w3id.org/rml/> .
+@prefix : <http://example.org/> .
+
+:jsonSource a rml:LogicalSource ;
+  rml:source "./use_cases/Telefonica/data.json" ;
+  rml:referenceFormulation rml:JSONPath ;
+  rml:iterator "$.entries[*]" .
+
+:jsonView a rml:LogicalView ;
+  rml:onLogicalSource :jsonSource ;
+  rml:field [
+    rml:fieldName "cn" ;
+    rml:reference "$.cn[*]" ;
+  ] ;
+  rml:field [
+      rml:fieldName "memberUid" ;
+      rml:reference "$.memberUid[*]" ;
+  ].

@@ -1,0 +1,56 @@
+@prefix rml: <http://w3id.org/rml/> .
+@prefix : <http://example.org/> .
+
+:csvSource a rml:LogicalSource ;
+  rml:source "./test_cases/POCLV0003/csv_data.csv"; #old RML formulation
+  rml:referenceFormulation rml:CSV .
+
+:jsonSource a rml:LogicalSource ;
+  rml:source "./test_cases/POCLV0003/json_data.json" ;
+  rml:referenceFormulation rml:JSONPath ;
+  rml:iterator "$.people[*]" .
+
+:jsonView a rml:LogicalView ;
+  rml:onLogicalSource :jsonSource ;
+  rml:field [
+    rml:fieldName "name" ;
+    rml:reference "$.name" ;
+  ] ;
+  rml:field [
+    rml:fieldName "item" ;
+    rml:reference "$.items[*]" ;
+    rml:field [
+      rml:fieldName "type" ;
+      rml:reference "$.type" ;
+    ] ;
+    rml:field [
+      rml:fieldName "weight" ;
+      rml:reference "$.weight" ;
+    ] ;
+  ] .
+
+:csvView a rml:LogicalView ;
+  rml:onLogicalSource :csvSource ;
+  rml:field [
+    rml:fieldName "name" ;
+    rml:reference "name" ;
+  ] ;
+  rml:field [
+    rml:fieldName "birthyear" ;
+    rml:reference "birthyear" ;
+  ] ;
+  rml:innerJoin [
+    rml:parentLogicalView :jsonView ;
+    rml:joinCondition [
+      rml:parent "name" ;
+      rml:child "name" ;
+    ] ;
+    rml:field [
+      rml:fieldName "item_type" ;
+      rml:reference "item.type" ;
+    ] ;
+    rml:field [
+      rml:fieldName "item_weight" ;
+      rml:reference "item.weight" ;
+    ] ;
+  ] .
