@@ -12,12 +12,11 @@ def get_fields_for_renaming(fields_to_be_renamed, fields):
        # converted_fields[fields[field]['reference']+ '.#'] = fields[field]['name'] + '.#'
     return converted_fields
 
-def get_iterations_jsonpath(document, jsonpath=''):
+def get_iterations_jsonpath(document, jsonpath):
     if isinstance(document, str):
         # this happens in case of switch of reference formulation
         document = json.loads(document)
-    exp = jp.parse(jsonpath)
-    iterations = [m.value for m in exp.find(document)]
+    iterations = [m.value for m in jsonpath.find(document)]
     return iterations
 
 def rename_parent_fields(dataframe, fieldnames_parent):

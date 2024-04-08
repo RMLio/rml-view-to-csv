@@ -262,7 +262,7 @@ class ViewToCsvConvertor:
 
     def add_field_json(self, df, field):
         field_name = self.fields[field]['name']
-        field_jsonpath = self.fields[field]['reference']
+        field_jsonpath = jp.parse(self.fields[field]['reference'])
         field_parent = self.fields[field]['parent']
         field_parent_name = self.fields[field_parent]['name']
         df[field_name] = df[field_parent_name].apply(get_iterations_jsonpath, jsonpath=field_jsonpath)
@@ -305,7 +305,8 @@ class ViewToCsvConvertor:
         child_fields = []
         for field in view_fields:
             field_name = self.fields[field]['name']
-            df[field_name] = df['<it>'].apply(get_iterations_jsonpath, jsonpath=self.fields[field]['reference'])
+            jsonpath = jp.parse(self.fields[field]['reference'])
+            df[field_name] = df['<it>'].apply(get_iterations_jsonpath, jsonpath=jsonpath)
             #df[field_name + '.#'] = df[field_name].apply(add_iteration_index)
             #df = df.explode([field_name, field_name + '.#'])
             df = df.explode(field_name)
