@@ -1,0 +1,36 @@
+@prefix : <http://example.org/> .
+@prefix ql: <http://semweb.mmlab.be/ns/ql#> .
+@prefix rml: <http://w3id.org/rml/> .
+@prefix rml1: <http://semweb.mmlab.be/ns/rml#> .
+@prefix rr: <http://www.w3.org/ns/r2rml#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>.
+@prefix org: <http://www.w3.org/ns/org#>.
+
+:jsonSource a rml1:LogicalSource ;
+  rml1:source "./use_cases/Telefonica/data.json" ;
+  rml1:referenceFormulation ql:JSONPath ;
+  rml1:iterator "$.entries[*]" .
+
+:jsonView a rml:LogicalView ;
+  rml:onLogicalSource :jsonSource ;
+  rml:field [
+    rml:fieldName "cn" ;
+    rml:reference "$.cn[*]" ;
+  ] ;
+  rml:field [
+      rml:fieldName "memberUid" ;
+      rml:reference "$.memberUid[*]" ;
+  ].
+  
+:tm a rr:TriplesMap ;
+  rml1:logicalSource :jsonView ;
+  rr:subjectMap [
+	rr:template "http:example.com/{cn}_{memberUid}";
+	];
+  rr:predicateObjectMap [
+    rr:predicate rdf:type ;
+	rr:objectMap [
+		rr:constant org:Membership;
+	];
+ ].
