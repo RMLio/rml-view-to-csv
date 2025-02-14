@@ -3,7 +3,7 @@ prefix rml2: <http://w3id.org/rml/>
 SELECT DISTINCT *
 WHERE {
     ?LogicalView a rml2:LogicalView .
-    ?LogicalView rml2:onLogicalSource ?LogicalSource .
+    ?LogicalView rml2:viewOn ?LogicalSource .
     ?LogicalView rml2:field ?Field .
     OPTIONAL {?LogicalView rml2:leftJoin|rml2:innerJoin ?Join .}
 }"""
@@ -14,8 +14,13 @@ prefix rml2: <http://w3id.org/rml/>
 prefix rml: <http://semweb.mmlab.be/ns/rml#> 
 SELECT DISTINCT *
 WHERE {
-    ?Parent rml2:onLogicalSource ?LogicalSource .
-    OPTIONAL { ?LogicalSource rml2:source|rml:source  ?Source .}
+    ?Parent rml2:viewOn ?LogicalSource .
+    OPTIONAL { ?LogicalSource rml:source  ?Source .}
+    OPTIONAL { 
+        ?LogicalSource rml2:source  ?SourceNode .
+        ?SourceNode rml2:path ?Source;
+            rml2:root rml2:MappingDirectory.
+        }
     OPTIONAL { ?LogicalSource rml2:referenceFormulation|rml:referenceFormulation ?ReferenceFormulation .}
     OPTIONAL { ?LogicalSource rml2:iterator|rml:iterator ?Iterator } .
 }"""
@@ -31,6 +36,7 @@ WHERE {
     OPTIONAL {?Field rml2:template ?Template .}
     OPTIONAL {?Field rml2:field ?Child .}
     OPTIONAL {?Field rml2:referenceFormulation ?ReferenceFormulation .}
+    OPTIONAL {?Field rml2:iterator ?Iterator .}
 }"""
 
 left_joins = """
@@ -68,13 +74,13 @@ def all_references_per_lv(lv):
     SELECT DISTINCT ?Reference WHERE {{
     {{
     ?TriplesMap rml:logicalSource|rml2:logicalSource  <{lv}> .   
-    ?TriplesMap (<http://example.com>|!<http://example.com>)* ?o .
+    ?TriplesMap (<http://example.org>|!<http://example.org>)* ?o .
     ?o rml:reference|rr:child|rml2:reference|rml2:child ?Reference.
     }}
     UNION
     {{
     ?Join rml2:parentLogicalView <{lv}> .   
-    ?Join (<http://example.com>|!<http://example.com>)* ?o .
+    ?Join (<http://example.org>|!<http://example.org>)* ?o .
     ?o rml:reference|rr:child|rml2:reference|rml2:parent ?Reference.
     }}
 }}"""
@@ -89,13 +95,13 @@ def all_templates_per_lv(lv):
     SELECT DISTINCT ?Template WHERE {{
     {{
     ?TriplesMap rml:logicalSource|rml2:logicalSource <{lv}> .
-    ?TriplesMap (<http://example.com>|!<http://example.com>)* ?o .
+    ?TriplesMap (<http://example.org>|!<http://example.org>)* ?o .
     ?o rr:template|rml2:template ?Template.
     }}
     UNION
     {{
     ?Join rml2:parentLogicalView <{lv}> .   
-    ?Join (<http://example.com>|!<http://example.com>)* ?o .
+    ?Join (<http://example.org>|!<http://example.org>)* ?o .
     ?o rr:template|rml2:template ?Template.
     }}
     
@@ -109,18 +115,18 @@ def all_blank_nodes_without_template_or_reference_per_lv(lv):
     PREFIX rml2: <http://w3id.org/rml/> 
     SELECT DISTINCT ?BlankNode WHERE {{
     ?TriplesMap rml2:logicalSource|rml:logicalSource <{lv}> .
-    ?TriplesMap (<http://example.com>|!<http://example.com>)* ?BlankNode .
+    ?TriplesMap (<http://example.org>|!<http://example.org>)* ?BlankNode .
     {{
     {{?BlankNode rr:termType rr:BlankNode.}}
     UNION
     {{?BlankNode rml2:termType rml2:BlankNode.}}
     }}
     filter NOT EXISTS {{
-       ?BlankNode (<http://example.com>|!<http://example.com>)* ?o .
+       ?BlankNode (<http://example.org>|!<http://example.org>)* ?o .
        ?o rr:template|rml:reference ?o2.
        }}
     filter NOT EXISTS {{
-       ?BlankNode (<http://example.com>|!<http://example.com>)* ?o .
+       ?BlankNode (<http://example.org>|!<http://example.org>)* ?o .
        ?o rml2:template|rml2:reference ?o2.
        }}
     }}    
@@ -177,7 +183,7 @@ def all_linked_references(term):
     PREFIX rr: <http://www.w3.org/ns/r2rml#>
     PREFIX rml: <http://semweb.mmlab.be/ns/rml#>
     SELECT DISTINCT ?Reference WHERE {{
-    <{term}> (<http://example.com>|!<http://example.com>)* ?o .
+    <{term}> (<http://example.org>|!<http://example.org>)* ?o .
     ?o rml:reference ?Reference.
     }}"""
 
@@ -186,6 +192,6 @@ def all_linked_templates(term):
     PREFIX rr: <http://www.w3.org/ns/r2rml#>
     PREFIX rml: <http://semweb.mmlab.be/ns/rml#>
     SELECT DISTINCT ?Template WHERE {{
-    <{term}> (<http://example.com>|!<http://example.com>)* ?o .
+    <{term}> (<http://example.org>|!<http://example.org>)* ?o .
     ?o rr:Template ?Template.
     }}"""

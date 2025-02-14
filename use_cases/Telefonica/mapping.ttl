@@ -2,12 +2,16 @@
 @prefix : <http://example.org/> .
 
 :jsonSource a rml:LogicalSource ;
-  rml:source "./use_cases/Telefonica/data.json" ;
   rml:referenceFormulation rml:JSONPath ;
-  rml:iterator "$.entries[*]" .
+  rml:iterator "$.entries[*]" ;
+  rml:source [
+    a rml:RelativePathSource , rml:Source ;
+    rml:root rml:MappingDirectory ;
+    rml:path "./use_cases/Telefonica/data.json" ;
+  ] .
 
 :jsonView a rml:LogicalView ;
-  rml:onLogicalSource :jsonSource ;
+  rml:viewOn :jsonSource ;
   rml:field [
     rml:fieldName "cn" ;
     rml:reference "$.cn[*]" ;

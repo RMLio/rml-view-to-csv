@@ -8,8 +8,8 @@ def get_fields_for_renaming(fields_to_be_renamed, fields):
     converted_fields = {}
     for field in fields_to_be_renamed:
         converted_fields[fields[field]['reference']] = fields[field]['name']
-       # index only to be added to join if explicitely declared
-       # converted_fields[fields[field]['reference']+ '.#'] = fields[field]['name'] + '.#'
+        # index only to be added to join if explicitely declared
+        # converted_fields[fields[field]['reference']+ '.#'] = fields[field]['name'] + '.#'
     return converted_fields
 
 def get_iterations_jsonpath(document, jsonpath):
@@ -52,9 +52,6 @@ def get_all_references_per_view(graph, logical_view):
 def safe_removal_of_duplicates(graph, logical_view):
     results = graph.query(queries.all_blank_nodes_without_template_or_reference_per_lv(logical_view))
     return len(results) == 0
-
-
-
 
 def add_iteration_index(value):
     if isinstance(value, list):

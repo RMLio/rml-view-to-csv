@@ -2,26 +2,30 @@
 @prefix : <http://example.org/> .
 
 :jsonSource a rml:LogicalSource ;
-  rml:source "./test_cases/POCLV0006/json_data2.json" ;
   rml:referenceFormulation rml:JSONPath ;
-  rml:iterator "$.people[*]" .
+  rml:iterator "$.people[*]" ;
+  rml:source [
+    a rml:RelativePathSource , rml:Source ;
+    rml:root rml:MappingDirectory ;
+    rml:path "./test_cases/POCLV0006/json_data2.json" ;
+  ] .
 
 :jsonView a rml:LogicalView ;
-  rml:onLogicalSource :jsonSource ;
+  rml:viewOn :jsonSource ;
   rml:field [
     rml:fieldName "name" ;
     rml:reference "$.name" ;
   ] ;
   rml:field [
     rml:fieldName "item" ;
-    rml:reference "$.items[*]" ;
+    rml:iterator "$.items[*]" ;
     rml:field [
       rml:fieldName "type" ;
       rml:reference "$.type" ;
     ] ;
     rml:field [
       rml:fieldName "measures";
-      rml:reference "$.measures";
+      rml:iterator "$.measures";
       rml:field [
         rml:fieldName "weight" ;
         rml:reference "$.weight" ;

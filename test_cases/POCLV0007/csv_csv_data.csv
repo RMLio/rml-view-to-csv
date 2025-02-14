@@ -1,0 +1,4 @@
+name,parents
+alice,"mother,father\nmaria,joseph\nmaria2,joseph2\n"
+bob,mother,father\nklare,\n""
+tobias,""mother,father\n""

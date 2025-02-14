@@ -1,0 +1,30 @@
+@prefix rml: <http://w3id.org/rml/> .
+@prefix : <http://example.org/> .
+
+:csvSource a rml:LogicalSource ;
+  rml:referenceFormulation rml:CSV ;
+  rml:source [
+    a rml:RelativePathSource , rml:Source ;
+    rml:root rml:MappingDirectory ;
+    rml:path "./test_cases/POCLV0007/csv_csv_data.csv" ;
+  ] .
+
+:csvView a rml:LogicalView ;
+  rml:viewOn :csvSource ;
+  rml:field [
+    rml:fieldName "name" ;
+    rml:reference "name" ;
+  ] ;
+  rml:field [
+    rml:fieldName "parents" ;
+    rml:iterator "parents" ;
+    rml:field [
+      rml:fieldName "mother" ;
+      rml:reference "mother" ;
+    ] ;
+    rml:field [
+      rml:fieldName "father" ;
+      rml:reference "father" ;
+    ] ;
+  ] .
+

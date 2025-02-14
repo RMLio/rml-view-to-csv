@@ -10,7 +10,7 @@ from collections import defaultdict
 from io import StringIO
 
 import pandas as pd
-from rdflib import Graph, Literal
+from rdflib import Graph, Literal, BNode
 
 import util
 from namespaces import *
@@ -24,7 +24,8 @@ class ViewToCsvConvertor:
     Also Materializes the views as CSV files.
     """
 
-    def __init__(self, mapping: str, output_dir: str, old_rml: bool = False, optimize: bool = False, no_ref_object_map: bool = False):
+    def __init__(self, mapping: str, output_dir: str, old_rml: bool = False, optimize: bool = False,
+                 no_ref_object_map: bool = False):
         """Create an instance of the ViewToCsvConvertor class.
 
         Parameters
@@ -62,7 +63,8 @@ class ViewToCsvConvertor:
         field_results = self.g.query(queries.fields)
         for row in field_results:
             self.fields.setdefault(row.Field, {'id': row.Field, 'name': row.Name.value, 'parent': row.Parent,
-                                               'children': set(), 'reference_formulation': None})
+                                               'children': set(), 'reference_formulation': None, 'iterator': None,
+                                               'iterable': False})
             if row.Parent in self.logical_views:
                 # to indicate that the parent is the root iterator
                 self.fields[row.Field]['parent'] = '<it>'
@@ -78,7 +80,18 @@ class ViewToCsvConvertor:
                 self.fields[row.Field]['children'].add(row.Child)
             if row.ReferenceFormulation:
                 self.fields[row.Field]['reference_formulation'] = row.ReferenceFormulation
-
+            if row.Iterator:
+                self.fields[row.Field]['iterator'] = row.Iterator
+            # add default iterator for JSON
+            if self.fields[row.Field]['reference_formulation'] \
+                and 'JSONPath' in self.fields[row.Field]['reference_formulation']  \
+                and not self.fields[row.Field]['iterator']:
+                self.fields[row.Field]['iterator'] = '$'
+            # if a field has a reference_formulation or an iterator, it is an iterable field
+            if self.fields[row.Field]['iterator'] or self.fields[row.Field]['reference_formulation'] :
+                self.fields[row.Field]['iterable'] = True
+            else:
+                self.fields[row.Field]['reference_formulation'] = 'EXPRESSION'
         source_results = self.g.query(queries.sources)
         for row in source_results:
             self.logical_sources.setdefault(row.LogicalSource, {'id': row.LogicalSource,
@@ -99,7 +112,7 @@ class ViewToCsvConvertor:
             # add any enherited reference formulations to the fields
             nested_fields = []
             for field in self.logical_views[row.LogicalView]['fields']:
-                # add the first level add the reference formulation of the logical source
+                # at the first level add the reference formulation of the logical source
                 if not self.fields[field]['reference_formulation']:
                     self.fields[field]['reference_formulation'] = self.logical_sources[row.LogicalSource][
                         'reference_formulation']
@@ -116,8 +129,11 @@ class ViewToCsvConvertor:
             if row.Join:
                 self.logical_views[row.LogicalView]['joins'].add(row.Join)
             if self.optimize:
-                self.logical_views[row.LogicalView]['used_references'] = util.get_all_references_per_view(self.g, row.LogicalView)
-                self.logical_views[row.LogicalView]['remove_duplicates'] = util.safe_removal_of_duplicates(self.g, row.LogicalView)
+                self.logical_views[row.LogicalView]['used_references'] = util.get_all_references_per_view(self.g,
+                                                                                                          row.LogicalView)
+                self.logical_views[row.LogicalView]['remove_duplicates'] = util.safe_removal_of_duplicates(self.g,
+                                                                                                           row.LogicalView)
+
         def add_join(_row, _join_type):
             # join type according to the keys in pandas merge: left_join = 'left', inner_join = 'inner'
             self.joins.setdefault(_row.Join, {'child_logical_view': _row.ChildLogicalView,
@@ -165,7 +181,7 @@ class ViewToCsvConvertor:
         if logical_source['reference_formulation'] == RML2['Fields']:
             if logical_source['id'] not in self.materialized_logical_views.keys():
                 self.materialize_logical_view(logical_source['id'])
-            df = self.make_view_from_csv(self.materialized_logical_views[logical_source], logical_view)
+            df = self.make_view_from_csv(self.materialized_logical_views[logical_source['id']], logical_view)
         elif 'CSV' in logical_source['reference_formulation']:
             df = self.make_view_from_csv(logical_source['source'], logical_view)
         elif 'JSONPath' in logical_source['reference_formulation']:
@@ -177,8 +193,6 @@ class ViewToCsvConvertor:
             join = self.joins[join_key]
             parent_logical_view = self.logical_views[join['parent_logical_view']]
             fields_parent = get_fields_for_renaming(join['fields'], self.fields)
-            # add '.#'
-
             join_conditions = join['join_conditions']
             join_values_left = []
             join_values_right = []
@@ -204,11 +218,22 @@ class ViewToCsvConvertor:
             for col in parent_df.columns:
                 if col not in list(fields_parent.values()) + join_values_right_suffixed:
                     del parent_df[col]
+
+            # groupby on parent join keys > we need lists to add the indexes after the join
+            parent_df = parent_df.groupby(join_values_right_suffixed).agg(pd.Series.tolist).reset_index()
+            # add index
+            for field_name in fields_parent.values():
+                parent_df[field_name + '.#'] = parent_df[field_name].apply(add_iteration_index)
+            explode_list = parent_df.columns.tolist()
+            for column in explode_list:
+                if column in join_values_right_suffixed:
+                    explode_list.remove(column)
+            parent_df = parent_df.explode(explode_list)
+
             # join
             df = pd.merge(df, parent_df, left_on=join_values_left, right_on=join_values_right_suffixed,
                           how=join['join_type'], suffixes=('', '_parent'))
 
-            # delete the fields from the parent view that where only needed for the join conditions
             for join_value_right_suffixed in join_values_right_suffixed:
                 del df[join_value_right_suffixed]
 
@@ -222,7 +247,7 @@ class ViewToCsvConvertor:
 
         # at the end one more check to remove unnecessary field and duplicates
         if self.optimize:
-        # after every join: remove unnecessary fields and duplicate
+            # after every join: remove unnecessary fields and duplicate
             for col in df.columns:
                 if col not in logical_view['used_references']:
                     del df[col]
@@ -230,6 +255,8 @@ class ViewToCsvConvertor:
                 df = df.drop_duplicates(ignore_index=True)
 
         filename = os.path.join(self.output_dir, 'view' + str(len(self.materialized_logical_views)) + '.csv')
+        # moving the # column to the second column because RMLMapper cannot handle # as first column
+        df.insert(1, '#', df.pop('#'))
         df.to_csv(filename, index=False, encoding='utf-8')
         self.materialized_logical_views[logical_view['id']] = filename
         return df
@@ -238,37 +265,53 @@ class ViewToCsvConvertor:
         if fields_to_be_added:
             siblings = fields_to_be_added.pop(0)
             siblings = list(siblings)
-            first_sibling = siblings[0]
-            new_field_parent = self.fields[first_sibling]['parent']
+            new_field_parent = self.fields[siblings[0]]['parent']
             new_field_parent_reference_formulation = self.fields[new_field_parent]['reference_formulation']
-            for sibling in siblings:
-                self.fields[sibling]['name'] = self.fields[new_field_parent]['name'] + '.' + self.fields[sibling]['name']
-                if self.fields[sibling]['children']:
-                    fields_to_be_added.append(self.fields[sibling]['children'])
+            fields_to_be_added_siblings, converted_fields = self.get_info_from_siblings(siblings, True)
+            if fields_to_be_added_siblings:
+                fields_to_be_added = fields_to_be_added + fields_to_be_added_siblings
+            new_field_parent_name = self.fields[new_field_parent]['name']
+            # the parent is an iterable JSON field
             if 'JSONPath' in new_field_parent_reference_formulation:
-                new_field_parent_name = self.fields[new_field_parent]['name']
+                # if iterator, first apply iterator to parent
+                #if self.fields[new_field_parent]['iterator']:
+                #    expr = jp.parse(self.fields[new_field_parent]['iterator'])
+                #    df[new_field_parent_name] = df[new_field_parent_name].apply(get_iterations_jsonpath, jsonpath=expr)
+                #    df[new_field_parent_name + '.#'] = df[new_field_parent_name].apply(add_iteration_index)
+                #    df = df.explode([new_field_parent_name, new_field_parent_name + '.#'])
                 for sibling in siblings:
                     df = self.add_field_json(df, sibling)
+
                 def dump_if_not_str(x):
                     if not isinstance(x, str):
                         x = json.dumps(x)
                     return x
+
                 df[new_field_parent_name] = df[new_field_parent_name].apply(dump_if_not_str)
+            # the parent is an iterable csv field
             if 'CSV' in new_field_parent_reference_formulation:
-                df = self.add_siblings_csv(df, siblings)
+                df = self.add_siblings_csv(df, siblings, new_field_parent)
+            if 'EXPRESSION' == new_field_parent_reference_formulation:
+                for sibling in siblings:
+                    df = self.add_field_expression(df, sibling, new_field_parent_name)
             return self.add_fields(df, fields_to_be_added)
         else:
             return df
 
-    def add_field_json(self, df, field):
+    def add_field_json(self, df, field, nested_field=True):
         field_name = self.fields[field]['name']
-        field_jsonpath = jp.parse(self.fields[field]['reference'])
-        field_parent = self.fields[field]['parent']
-        field_parent_name = self.fields[field_parent]['name']
+        # if the field is an iterable, apply the iterator, else apply the expression
+        if self.fields[field]['iterable']:
+            field_jsonpath = jp.parse(self.fields[field]['iterator'])
+        else:
+            field_jsonpath = jp.parse(self.fields[field]['reference'])
+        field_parent_name = '<it>'
+        if nested_field:
+            field_parent = self.fields[field]['parent']
+            field_parent_name = self.fields[field_parent]['name']
         df[field_name] = df[field_parent_name].apply(get_iterations_jsonpath, jsonpath=field_jsonpath)
-       # df[field_name + '.#'] = df[field_name].apply(add_iteration_index)
-       # df = df.explode([field_name, field_name + '.#'])
-        df = df.explode(field_name)
+        df[field_name + '.#'] = df[field_name].apply(add_iteration_index)
+        df = df.explode([field_name, field_name + '.#'])
         return df
 
     def add_field_csv(self, df, field):
@@ -282,16 +325,29 @@ class ViewToCsvConvertor:
             return df[reference].tolist()
 
         df[field_name] = df[field_parent_name].apply(lambda x: read_csv_value(x, field_reference))
-       # df[field_name + '.#'] = df[field_name].apply(add_iteration_index)
         return df
 
-    def add_siblings_csv(self, df, siblings):
+    def add_siblings_csv(self, df, siblings, parent):
         sibling_names = []
         for sibling in siblings:
             self.add_field_csv(df, sibling)
             sibling_names.append(self.fields[sibling]['name'])
-           # sibling_names.append(self.fields[sibling]['name'] + '.#')
-        df = df.explode(list(sibling_names), ignore_index=True)
+        parent_name = self.fields[parent]['name']
+        # split in lines and remove headers
+        df[parent_name] = df[parent_name].apply(lambda x: x.splitlines()[1:])
+        df[parent_name + '.#'] = df[parent_name].apply(add_iteration_index)
+        df = df.explode([parent_name, parent_name + '.#', *sibling_names], ignore_index=True)
+        for name in sibling_names:
+            df[name + '.#'] = 0
+        return df
+
+    def add_field_expression(self, df, field, new_field_parent_name):
+        field_reference_formulation = self.fields[field]['reference_formulation']
+        if 'JSONPath' in field_reference_formulation:
+            df = self.add_field_json(df, field)
+        # CSV iterations + indexes will be made in when handling the child fields
+        if 'CSV' in field_reference_formulation:
+            df[self.fields[field]['name']] = df[new_field_parent_name]
         return df
 
     def make_view_from_json(self, source, iterator, logical_view):
@@ -300,41 +356,53 @@ class ViewToCsvConvertor:
         expr = jp.parse(iterator)
         data = [{'<it>': m.value} for m in expr.find(document)]
         df = pd.DataFrame(data)
-       # df['#'] = df.index
+        df['#'] = df.index
         view_fields = logical_view['fields']
-        child_fields = []
+        fields_to_be_added = []
         for field in view_fields:
-            field_name = self.fields[field]['name']
-            jsonpath = jp.parse(self.fields[field]['reference'])
-            df[field_name] = df['<it>'].apply(get_iterations_jsonpath, jsonpath=jsonpath)
-            #df[field_name + '.#'] = df[field_name].apply(add_iteration_index)
-            #df = df.explode([field_name, field_name + '.#'])
-            df = df.explode(field_name)
+            df = self.add_field_json(df, field, False)
+            # field_name = self.fields[field]['name']
+            # jsonpath = jp.parse(self.fields[field]['reference'])
+            # df[field_name] = df['<it>'].apply(get_iterations_jsonpath, jsonpath=jsonpath)
+            # df[field_name + '.#'] = df[field_name].apply(add_iteration_index)
+            # df = df.explode([field_name, field_name + '.#'])
             if self.fields[field]['children']:
-                child_fields.append(self.fields[field]['children'])
-        df = self.add_fields(df, child_fields)
+                fields_to_be_added.append(self.fields[field]['children'])
+        df = self.add_fields(df, fields_to_be_added)
         df = df.drop('<it>', axis=1)
         return df
 
-    def make_view_from_csv(self, source, logical_view):
-        fields_to_be_added = logical_view['fields']
-        child_fields = []
+    def get_info_from_siblings(self, siblings, nested=False):
+        fields_to_be_added = []
         converted_fields = {}
-        for field in fields_to_be_added:
-            converted_fields[self.fields[field]['name']] = self.fields[field]['reference']
-            if self.fields[field]['children']:
-                child_fields.append(self.fields[field]['children'])
-       # not sure about conversion to str, however in GTFS problems with irregular datatypes
+        if nested:
+            parent = self.fields[siblings[0]]['parent']
+            for sibling in siblings:
+                self.fields[sibling]['name'] = self.fields[parent]['name'] + '.' + self.fields[sibling]['name']
+        for sibling in siblings:
+            if self.fields[sibling]['iterable']:
+                converted_fields[self.fields[sibling]['iterator']] = self.fields[sibling]['name']
+            else:
+                converted_fields[self.fields[sibling]['reference']] = self.fields[sibling]['name']
+            if self.fields[sibling]['children']:
+                fields_to_be_added.append(self.fields[sibling]['children'])
+        return fields_to_be_added, converted_fields
+
+    def make_df_from_csv(self, source, converted_fields):
         types = defaultdict(lambda: str)
-        df = pd.read_csv(source, sep=',', usecols=list(converted_fields.values()), dtype=types)
-        #df = pd.read_csv(source, sep=',', usecols=list(converted_fields.values()))
+        df = pd.read_csv(source, sep=',', usecols=list(converted_fields.keys()), dtype=types)
         df.rename(columns=converted_fields, inplace=True)
-       # df['#'] = df.index
-        #for converted_field in converted_fields:
-            #df[converted_field + '.#'] = df.index
+        df['#'] = df.index
+        for converted_field_name in converted_fields.values():
             # for csv: always single value so index is 0
-            #df[converted_field + '.#'] = 0
-        df = self.add_fields(df, list(child_fields))
+            df[converted_field_name + '.#'] = 0
+        return df
+
+    def make_view_from_csv(self, source, logical_view):
+        siblings = logical_view['fields']
+        fields_to_be_added, converted_fields = self.get_info_from_siblings(siblings)
+        df = self.make_df_from_csv(source, converted_fields)
+        df = self.add_fields(df, list(fields_to_be_added))
         return df
 
     def execute(self) -> None:
@@ -355,13 +423,19 @@ class ViewToCsvConvertor:
                 self.g.add(
                     (materialized_logical_view, RML['source'],
                      Literal(self.materialized_logical_views[materialized_logical_view])))
+                ## no solution yet implemented for handling null values for CSV in old RML
             else:
                 self.g.add((materialized_logical_view, RDF['type'], RML2['LogicalSource']))
                 self.g.add((materialized_logical_view, RML2['referenceFormulation'], RML2['CSV']))
+                source_node = BNode()
+                self.g.add((materialized_logical_view, RML2['source'], source_node))
+                self.g.add((source_node, RDF['type'], RML2['Source']))
+                self.g.add((source_node, RDF['type'], RML2['RelativePathSource']))
+                self.g.add((source_node, RML2['root'], RML2['MappingDirectory']))
                 self.g.add(
-                    (materialized_logical_view, RML2['source'],
-                     Literal(self.materialized_logical_views[materialized_logical_view])))
-
+                    (source_node, RML2['path'], Literal(self.materialized_logical_views[materialized_logical_view])))
+                # acc to RML-IO spec "" is not automatically a null value for CSV
+                self.g.add((source_node, RML2['null'], Literal("")))
         # remove view related triples
         for field in self.fields:
             self.g.remove((field, None, None))
@@ -416,6 +490,7 @@ if __name__ == '__main__':
         print(f'No mapping file provided. Provide mapping file after option "--mapping".', file=sys.stderr)
         sys.exit(EXIT_CODE_NO_MAPPING)
     else:
-        convertor = ViewToCsvConvertor(args.mapping, args.output_dir, args.old_rml, args.optimize, args.no_ref_object_map)
+        convertor = ViewToCsvConvertor(args.mapping, args.output_dir, args.old_rml, args.optimize,
+                                       args.no_ref_object_map)
         convertor.execute()
         sys.exit(EXIT_CODE_SUCCESS)

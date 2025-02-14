@@ -6,7 +6,7 @@ import re
 
 
 def extract_references_from_template(template):
-    return [parent_subject_reference[1:-1] for parent_subject_reference in re.findall('\{.*?\}', template)]
+    return [parent_subject_reference[1:-1] for parent_subject_reference in re.findall(r'\{.*?\}', template)]
 
 
 def rename_same_logical_source(g):
@@ -118,7 +118,7 @@ def ref_object_map_to_view(g):
         g.add((tm_id, RDF['type'], RR['TriplesMap']))
         g.add((tm_id, RML['logicalSource'], child_view_id))
         g.add((child_view_id, RDF['type'], RML2['LogicalView']))
-        g.add((child_view_id, RML2['onLogicalSource'], row.ChildLogicalSource))
+        g.add((child_view_id, RML2['viewOn'], row.ChildLogicalSource))
         child_sm_id = EX['child_sm_' + str(counter)]
         g.add((tm_id, RR['subjectMap'], child_sm_id))
         g.add((child_sm_id, RR['template'], row.ChildSubjectTemplate))
@@ -136,7 +136,7 @@ def ref_object_map_to_view(g):
 
         parent_view_id = EX['parent_view_' + str(counter)]
         g.add((parent_view_id, RDF['type'], RML2['LogicalView']))
-        g.add((parent_view_id, RML2['onLogicalSource'], row.ParentLogicalSource))
+        g.add((parent_view_id, RML2['viewOn'], row.ParentLogicalSource))
 
         # join
         join_id = EX[child_view_id + '_' + parent_view_id + '_join']

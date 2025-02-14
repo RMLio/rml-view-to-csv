@@ -2,23 +2,31 @@
 @prefix : <http://example.org/> .
 
 :csvSource a rml:LogicalSource ;
-  rml:source "./test_cases/POCLV0002/csv_data.csv"; #old RML formulation
-  rml:referenceFormulation rml:CSV .
+  rml:referenceFormulation rml:CSV ;
+  rml:source [
+    a rml:RelativePathSource , rml:Source ;
+    rml:root rml:MappingDirectory ;
+    rml:path "./test_cases/POCLV0002/csv_data.csv" ;
+  ] .
 
 :jsonSource a rml:LogicalSource ;
-  rml:source "./test_cases/POCLV0002/json_data.json" ;
   rml:referenceFormulation rml:JSONPath ;
-  rml:iterator "$.people[*]" .
+  rml:iterator "$.people[*]" ;
+    rml:source [
+    a rml:RelativePathSource , rml:Source ;
+    rml:root rml:MappingDirectory ;
+    rml:path "./test_cases/POCLV0002/json_data.json" ;
+  ] .
 
 :jsonView a rml:LogicalView ;
-  rml:onLogicalSource :jsonSource ;
+  rml:viewOn :jsonSource ;
   rml:field [
     rml:fieldName "name" ;
     rml:reference "$.name" ;
   ] ;
   rml:field [
     rml:fieldName "item" ;
-    rml:reference "$.items[*]" ;
+    rml:iterator "$.items[*]" ;
     rml:field [
       rml:fieldName "type" ;
       rml:reference "$.type" ;
@@ -41,7 +49,7 @@
   ] .
 
 :csvView a rml:LogicalView ;
-  rml:onLogicalSource :csvSource ;
+  rml:viewOn :csvSource ;
   rml:field [
     rml:fieldName "name" ;
     rml:reference "name" ;

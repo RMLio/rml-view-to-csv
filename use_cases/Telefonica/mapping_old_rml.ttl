@@ -13,7 +13,7 @@
   rml1:iterator "$.entries[*]" .
 
 :jsonView a rml:LogicalView ;
-  rml:onLogicalSource :jsonSource ;
+  rml:viewOn :jsonSource ;
   rml:field [
     rml:fieldName "cn" ;
     rml:reference "$.cn[*]" ;
@@ -26,7 +26,7 @@
 :tm a rr:TriplesMap ;
   rml1:logicalSource :jsonView ;
   rr:subjectMap [
-	rr:template "http:example.com/{cn}_{memberUid}";
+	rr:template "http:example.org/{cn}_{memberUid}";
 	];
   rr:predicateObjectMap [
     rr:predicate rdf:type ;
