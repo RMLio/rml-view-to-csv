@@ -1,7 +1,7 @@
 # RML-view-to-CSV
 
 Proof-of-concept implementation for [RML Logical Views](https://github.com/kg-construct/rml-lv). 
-For more information we refer to our [paper]([https://openreview.net/forum?id=ecukfSgXaR](https://biblio.ugent.be/publication/01J1YD9J9RBMKM1YC7VSSPASHM)). 
+For more information we refer to our [paper](https://biblio.ugent.be/publication/01J1YD9J9RBMKM1YC7VSSPASHM). 
 
 ## Prerequisites
 
